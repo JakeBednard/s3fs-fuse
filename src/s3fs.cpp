@@ -2143,6 +2143,11 @@ static int s3fs_read(const char* path, char* buf, size_t size, off_t offset, str
   }
   FdManager::get()->Close(ent);
 
+  // XOR THE BUFFER
+  for(size_t i = 0; i < static_cast<size_t>(res); ++i) {
+    buf[i] = buf[i] ^ 0x11;
+  }
+
   return static_cast<int>(res);
 }
 
@@ -2152,6 +2157,12 @@ static int s3fs_write(const char* path, const char* buf, size_t size, off_t offs
 
   S3FS_PRN_DBG("[path=%s][size=%zu][offset=%jd][fd=%llu]", path, size, (intmax_t)offset, (unsigned long long)(fi->fh));
 
+  // XOR THE BUFFER
+  char* tempBuffer = (char *)buf;
+  for(size_t i = 0; i < size; ++i) {
+    tempBuffer[i] = (char)(tempBuffer[i] ^ 0x11);
+  }
+
   FdEntity* ent;
   if(NULL == (ent = FdManager::get()->ExistOpen(path, static_cast<int>(fi->fh)))){
     S3FS_PRN_ERR("could not find opened fd(%s)", path);
@@ -2160,7 +2171,7 @@ static int s3fs_write(const char* path, const char* buf, size_t size, off_t offs
   if(ent->GetFd() != static_cast<int>(fi->fh)){
     S3FS_PRN_WARN("different fd(%d - %llu)", ent->GetFd(), (unsigned long long)(fi->fh));
   }
-  if(0 > (res = ent->Write(buf, offset, size))){
+  if(0 > (res = ent->Write((const char*)tempBuffer, offset, size))){
     S3FS_PRN_WARN("failed to write file(%s). result=%jd", path, (intmax_t)res);
   }
   FdManager::get()->Close(ent);
